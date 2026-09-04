@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal binary
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Package application
+        run: |
+          mkdir -p dist/LomoTalk.app/Contents/MacOS
+          cp .build/apple/Products/Release/lomo_talk dist/LomoTalk.app/Contents/MacOS/lomo_talk
+          cp Support/Info.plist dist/LomoTalk.app/Contents/Info.plist
+          codesign --force --deep --sign - dist/LomoTalk.app
+          ditto -c -k --sequesterRsrc --keepParent dist/LomoTalk.app "dist/LomoTalk-${GITHUB_REF_NAME}.zip"
+          shasum -a 256 "dist/LomoTalk-${GITHUB_REF_NAME}.zip" > "dist/LomoTalk-${GITHUB_REF_NAME}.zip.sha256"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/LomoTalk-${GITHUB_REF_NAME}.zip" \
+            "dist/LomoTalk-${GITHUB_REF_NAME}.zip.sha256" \
+            --generate-notes \
+            --title "Lomo Talk $GITHUB_REF_NAME"
