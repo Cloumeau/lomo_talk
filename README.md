@@ -12,6 +12,15 @@ Say what you want to do, let the selected coding agent work in your current dire
 
 ## Install
 
+With Homebrew:
+
+```sh
+brew tap Cloumeau/tap
+brew install --cask Cloumeau/tap/lomo-talk
+```
+
+Or build it locally:
+
 ```sh
 ./scripts/install.sh
 ```
