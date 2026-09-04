@@ -33,6 +33,12 @@ lomo_talk
 
 On first launch, macOS asks for Microphone and Speech Recognition access. Lomo stops listening after about 1.4 seconds of silence.
 
+Lomo automatically prefers an installed premium or enhanced English voice. Download additional voices under **System Settings → Accessibility → Spoken Content → System Voice**. To select a particular installed voice by name:
+
+```sh
+LOMO_VOICE=Samantha lomo_talk
+```
+
 If installation reports that the macOS SDK cannot be resolved, update or reinstall Xcode Command Line Tools and rerun the installer. You can inspect the active tools with `xcode-select -p`.
 
 ## Voice commands

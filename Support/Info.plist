@@ -6,8 +6,8 @@
   <key>CFBundleIdentifier</key><string>com.cloumeau.lomotalk</string>
   <key>CFBundleName</key><string>Lomo Talk</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>0.1.1</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>LSUIElement</key><true/>
   <key>NSMicrophoneUsageDescription</key><string>Lomo Talk listens for your spoken terminal instructions.</string>
   <key>NSSpeechRecognitionUsageDescription</key><string>Lomo Talk transcribes your voice so you can talk to Codex or Claude.</string>

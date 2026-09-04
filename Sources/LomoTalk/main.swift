@@ -51,11 +51,11 @@ final class VoiceInput {
         request.shouldReportPartialResults = true
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
-        let done = DispatchSemaphore(value: 0)
         let lock = NSLock()
         var transcript = ""
         var lastChange = Date()
         var heardSpeech = false
+        var recognitionFinished = false
         var recognitionError: Error?
 
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
@@ -71,11 +71,11 @@ final class VoiceInput {
                     lastChange = Date()
                     heardSpeech = !next.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 }
-                if result.isFinal { done.signal() }
+                if result.isFinal { recognitionFinished = true }
             }
             if let error {
                 recognitionError = error
-                done.signal()
+                recognitionFinished = true
             }
             lock.unlock()
         }
@@ -87,11 +87,14 @@ final class VoiceInput {
 
         let timeout = Date().addingTimeInterval(30)
         while Date() < timeout {
-            if done.wait(timeout: .now() + 0.1) == .success { break }
+            // Speech callbacks are normally delivered on the main run loop. Keep
+            // it moving while we wait so transcription results can be received.
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
             lock.lock()
             let shouldStop = heardSpeech && Date().timeIntervalSince(lastChange) > 1.4
+            let finished = recognitionFinished
             lock.unlock()
-            if shouldStop { break }
+            if shouldStop || finished { break }
         }
 
         engine.stop()
@@ -108,13 +111,39 @@ final class VoiceInput {
     }
 }
 
+func selectVoice() -> AVSpeechSynthesisVoice? {
+    let voices = AVSpeechSynthesisVoice.speechVoices()
+    if let requested = ProcessInfo.processInfo.environment["LOMO_VOICE"],
+       let match = voices.first(where: { $0.name.caseInsensitiveCompare(requested) == .orderedSame }) {
+        return match
+    }
+
+    let english = voices.filter { $0.language.hasPrefix("en-") }
+    let naturalNames = ["Ava", "Samantha", "Zoe", "Daniel"]
+    let qualityLevels = Set(english.map { $0.quality.rawValue }).sorted(by: >)
+    for quality in qualityLevels {
+        for name in naturalNames {
+            if let match = english.first(where: { $0.quality.rawValue == quality && $0.name.contains(name) }) {
+                return match
+            }
+        }
+        if quality > AVSpeechSynthesisVoiceQuality.default.rawValue,
+           let match = english.first(where: { $0.quality.rawValue == quality }) {
+            return match
+        }
+    }
+    return AVSpeechSynthesisVoice(language: "en-US")
+}
+
+let lomoVoice = selectVoice()
+
 func speak(_ text: String) {
     let clean = text
         .replacingOccurrences(of: "```[\\s\\S]*?```", with: " Code block omitted. ", options: .regularExpression)
         .replacingOccurrences(of: "[`*_#>]", with: "", options: .regularExpression)
     let utterance = AVSpeechUtterance(string: String(clean.prefix(4_000)))
-    utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-    utterance.rate = 0.49
+    utterance.voice = lomoVoice
+    utterance.rate = 0.48
     let synthesizer = AVSpeechSynthesizer()
     synthesizer.speak(utterance)
     while synthesizer.isSpeaking { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
@@ -204,6 +233,7 @@ func claudeReply(prompt: String, sessionID: String) throws -> String {
 do {
     let voice = VoiceInput()
     try voice.authorize()
+    if let lomoVoice { print("Using voice: \(lomoVoice.name)") }
     var assistant = try askAssistant(using: voice)
     var codexSession: String?
     let claudeSession = UUID().uuidString.lowercased()
